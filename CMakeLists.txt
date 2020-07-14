@@ -20,6 +20,8 @@ catkin_package(
 
 include_directories(${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
 
-add_executable(demo src/demo.cpp)
+add_executable(position_editor src/position_editor.cpp)
+add_executable(position_monitor src/position_monitor.cpp)
 
-target_link_libraries(demo ${catkin_LIBRARIES})
+target_link_libraries(position_editor ${catkin_LIBRARIES})
+target_link_libraries(position_monitor ${catkin_LIBRARIES})
