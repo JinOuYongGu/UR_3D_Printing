@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <moveit/move_group_interface/move_group_interface.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 using namespace std;
 
@@ -20,23 +21,52 @@ int main(int argc, char **argv)
 
     while (true)
     {
-        cout << "Input x, y, z, w :" << endl;
-        double x, y, z, w;
-        cin >> x;
-        cin >> y;
-        cin >> z;
-        cin >> w;
+        string type = "";
+        cout << "Set param to edit: [pos/rpy]" << endl;
+        cin >> type;
 
-        if (x > 1 || x < -1 || y > 1 || y < -1 || z > 1 || z < -1 || w > 1 || w < -1)
-            cout << "Invalid input!" << endl;
+        if (type == "pos")
+        {
+            cout << "Input pos x, y, z :" << endl;
+            double x, y, z;
+            cin >> x;
+            cin >> y;
+            cin >> z;
+
+            arm.setPositionTarget(x, y, z, end_effector);
+        }
+
+        else if (type == "rpy")
+        {
+            cout << "Input R, P, Y :" << endl;
+
+            double r, p, y;
+            cin >> r;
+            cin >> p;
+            cin >> y;
+
+            tf2::Quaternion quaternion;
+            quaternion.setRPY(r, p, y);
+            quaternion.normalize();
+            ROS_INFO_STREAM(quaternion);
+
+            double quater_x = quaternion.getX();
+            double quater_y = quaternion.getY();
+            double quater_z = quaternion.getZ();
+            double quater_w = quaternion.getW();
+
+            arm.setOrientationTarget(quater_x, quater_y, quater_z, quater_w, end_effector);
+            cout << "Orientation seted as " << quater_x << ", " << quater_y << ", " << quater_z << ", " << quater_w << endl;
+        }
+
         else
         {
-            arm.setOrientationTarget(x, y, z, w, end_effector);
-            cout << "Orientation seted as " << x << ", " << y << ", " << z << ", " << w << endl;
-
-            arm.move();
-            cout << "Robot moved" << endl;
+            cout << "Invalid option, please input again." << endl;
+            continue;
         }
+
+        arm.move();
+        cout << "Robot moved" << endl;
     }
 
     return 0;

@@ -25,10 +25,18 @@ int main(int argc, char **argv)
         geometry_msgs::PoseStamped end_pose = arm.getCurrentPose(end_effector);
 
         cout << "=== [" << idx * intervalSec / 60 << "mins " << idx * intervalSec % 60 << "secs past] ===" << endl;
-        cout << "Current pose w: " << end_pose.pose.orientation.w << endl;
-        cout << "Current pose x: " << end_pose.pose.orientation.x << endl;
-        cout << "Current pose y: " << end_pose.pose.orientation.y << endl;
-        cout << "Current pose z: " << end_pose.pose.orientation.z << endl;
+        
+        cout << "Current pos : " 
+        << end_pose.pose.position.x << ", " 
+        << end_pose.pose.position.y << ", " 
+        << end_pose.pose.position.z << endl;
+
+        cout << "Current orient xyzw : " 
+        << end_pose.pose.orientation.x << ", " 
+        << end_pose.pose.orientation.y << ", " 
+        << end_pose.pose.orientation.z << ", " 
+        << end_pose.pose.orientation.w << endl;
+
 
         idx++;
         sleep(intervalSec);
