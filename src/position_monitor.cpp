@@ -37,6 +37,12 @@ int main(int argc, char **argv)
         << end_pose.pose.orientation.z << ", " 
         << end_pose.pose.orientation.w << endl;
 
+        vector<double> vJointValues = arm.getCurrentJointValues();
+        for(auto&& value:vJointValues)
+        {
+            cout << value << ", ";
+        }
+        cout << endl;
 
         idx++;
         sleep(intervalSec);
