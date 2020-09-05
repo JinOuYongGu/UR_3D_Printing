@@ -6,6 +6,7 @@
 #include <moveit/robot_trajectory/robot_trajectory.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 
+//TO DO: move the function to a separate .h file
 void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &plan, const std::string end_effector, const double speed)
 {
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
