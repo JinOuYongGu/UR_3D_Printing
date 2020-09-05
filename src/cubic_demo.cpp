@@ -40,13 +40,14 @@ void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &
         //get euclidean distance between the two waypoints
         euclidean_distance = pow(
             pow(next_end_effector_state.translation()[0] - current_end_effector_state.translation()[0], 2) +
-            pow(next_end_effector_state.translation()[1] - current_end_effector_state.translation()[1], 2) + 
-            pow(next_end_effector_state.translation()[2] - current_end_effector_state.translation()[2], 2), 0.5);
+                pow(next_end_effector_state.translation()[1] - current_end_effector_state.translation()[1], 2) +
+                pow(next_end_effector_state.translation()[2] - current_end_effector_state.translation()[2], 2),
+            0.5);
 
         new_timestamp = curr_waypoint->time_from_start.toSec() + (euclidean_distance / speed); //start by printing out all 3 of these!
         old_timestamp = next_waypoint->time_from_start.toSec();
 
-            //update next waypoint timestamp & joint velocities/accelerations if joint velocity/acceleration constraints allow
+        //update next waypoint timestamp & joint velocities/accelerations if joint velocity/acceleration constraints allow
         if (new_timestamp > old_timestamp)
             next_waypoint->time_from_start.fromSec(new_timestamp);
         else
@@ -114,9 +115,9 @@ void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "moveit_cartesian_demo");
-	ros::AsyncSpinner spinner(1);
-	spinner.start();
+    ros::init(argc, argv, "moveit_cartesian_demo");
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
 
     moveit::planning_interface::MoveGroupInterface arm("manipulator");
 
@@ -161,51 +162,60 @@ int main(int argc, char **argv)
     arm.setPoseTarget(target_pose);
     arm.move();
 
-	std::vector<geometry_msgs::Pose> waypoints;
+    std::vector<geometry_msgs::Pose> waypoints;
 
     //将初始位姿加入路点列表
-	waypoints.push_back(target_pose);
+    waypoints.push_back(target_pose);
 
-    double centerA = target_pose.position.x;
-    double centerB = target_pose.position.y;
-    double radius = 0.05;
+    double step = 0.001;
+    double size = 0.1;
+    double center_x = target_pose.position.x;
+    double center_y = target_pose.position.y;
+    double direction = 1.0;
 
-    std::cout << "Input the step distance:\n";
-    double step = 0;
-    std::cin >> step;
-    step = step > 0 && step < 1 ? step : 0.1;
-
-    for (double th = 0.0; th < 6.28; th = th + step)
+    while (ros::ok())
     {
-        target_pose.position.x = centerA + radius * cos(th);
-        target_pose.position.y = centerB + radius * sin(th);
+        target_pose.position.x += direction * step;
+
+        double distance_x = fabs(target_pose.position.x - center_x);
+        double distance_y = fabs(target_pose.position.y - center_y);
+
+        if (distance_x > size)
+        {
+            direction = -1.0 * direction;
+            target_pose.position.y += step;
+        }
+
+        if (distance_y > size)
+            break;
+
         waypoints.push_back(target_pose);
     }
 
     // 笛卡尔空间下的路径规划
-	moveit_msgs::RobotTrajectory trajectory;
-	const double jump_threshold = 0.0;
-	const double eef_step = 0.0005;
-	double fraction = 0.0;
-    int maxtries = 100;   //最大尝试规划次数
-    int attempts = 0;     //已经尝试规划次数
+    moveit_msgs::RobotTrajectory trajectory;
+    const double jump_threshold = 0.0;
+    const double eef_step = 0.0005;
+    double fraction = 0.0;
+    int maxtries = 100; //最大尝试规划次数
+    int attempts = 0;   //已经尝试规划次数
 
-    while(fraction < 1.0 && attempts < maxtries)
+    while (fraction < 1.0 && attempts < maxtries)
     {
         fraction = arm.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
         attempts++;
-        
-        if(attempts % 10 == 0)
+
+        if (attempts % 10 == 0)
             ROS_INFO("Still trying after %d attempts...", attempts);
     }
-    
-    if(fraction == 1)
-    {   
+
+    if (fraction == 1)
+    {
         ROS_INFO("Path computed successfully. Moving the arm.");
 
-	    // 生成机械臂的运动规划数据
-	    moveit::planning_interface::MoveGroupInterface::Plan plan;
-	    plan.trajectory_ = trajectory;
+        // 生成机械臂的运动规划数据
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        plan.trajectory_ = trajectory;
 
         std::cout << "Input the speed:\n";
         double speed = 0;
@@ -226,6 +236,6 @@ int main(int argc, char **argv)
     arm.move();
     sleep(1);
 
-    ros::shutdown(); 
-	return 0;
+    ros::shutdown();
+    return 0;
 }
