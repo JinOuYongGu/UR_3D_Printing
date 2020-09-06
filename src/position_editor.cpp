@@ -1,3 +1,5 @@
+// Set the position and orientation of end effector
+
 #include <ros/ros.h>
 
 #include <iostream>

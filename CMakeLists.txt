@@ -20,7 +20,11 @@ catkin_package(
     EIGEN3
 )
 
-include_directories(${catkin_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIRS})
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+  )
 
 add_executable(arduino_sender src/arduino_sender.cpp)
 add_executable(position_editor src/position_editor.cpp)
