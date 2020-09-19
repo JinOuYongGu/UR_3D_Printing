@@ -99,6 +99,7 @@ int main(int argc, char **argv)
         speed = speed > 0.1 ? 0.1 : speed;
         std::cout << "Speed has set to " << speed << std::endl;
 
+        // replan the velocity and acceleration of trajectory
         setAvgCartesianSpeed(plan, end_effector_link, speed);
         arm.execute(plan);
         sleep(1);

@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     string end_effector = arm.getEndEffectorLink();
 
     int idx = 1;
-    int intervalSec = 5;
+    int intervalSec = 3;
     while (true)
     {
         geometry_msgs::PoseStamped end_pose = arm.getCurrentPose(end_effector);
