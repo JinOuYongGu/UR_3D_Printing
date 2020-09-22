@@ -21,8 +21,11 @@ int main(int argc, char **argv)
 
     const string end_effector = arm.getEndEffectorLink();
 
-    while (true)
+    while (ros::ok())
     {
+        geometry_msgs::PoseStamped end_pose = arm.getCurrentPose(end_effector);
+        geometry_msgs::Pose target_pose = end_pose.pose;
+
         string type = "";
         cout << "Set param to edit: [pos/rpy]" << endl;
         cin >> type;
@@ -34,8 +37,11 @@ int main(int argc, char **argv)
             cin >> x;
             cin >> y;
             cin >> z;
+            target_pose.position.x = x;
+            target_pose.position.y = y;
+            target_pose.position.z = z;
 
-            arm.setPositionTarget(x, y, z, end_effector);
+            arm.setPoseTarget(target_pose, end_effector);
         }
 
         else if (type == "rpy")
@@ -47,6 +53,9 @@ int main(int argc, char **argv)
             cin >> p;
             cin >> y;
 
+            r = r * M_PI / 180.0;
+            p = p * M_PI / 180.0;
+            y = y * M_PI / 180.0;
             tf2::Quaternion quaternion;
             quaternion.setRPY(r, p, y);
             quaternion.normalize();
@@ -57,8 +66,12 @@ int main(int argc, char **argv)
             double quater_z = quaternion.getZ();
             double quater_w = quaternion.getW();
 
-            arm.setOrientationTarget(quater_x, quater_y, quater_z, quater_w, end_effector);
-            cout << "Orientation seted as " << quater_x << ", " << quater_y << ", " << quater_z << ", " << quater_w << endl;
+            target_pose.orientation.x = quater_x;
+            target_pose.orientation.y = quater_y;
+            target_pose.orientation.z = quater_z;
+            target_pose.orientation.w = quater_w;
+
+            arm.setPoseTarget(target_pose, end_effector);
         }
 
         else

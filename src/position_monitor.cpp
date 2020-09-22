@@ -25,17 +25,21 @@ int main(int argc, char **argv)
         geometry_msgs::PoseStamped end_pose = arm.getCurrentPose(end_effector);
 
         cout << "=== [" << idx * intervalSec / 60 << "mins " << idx * intervalSec % 60 << "secs past] ===" << endl;
-        
-        cout << "Current pos : " 
-        << end_pose.pose.position.x << ", " 
-        << end_pose.pose.position.y << ", " 
-        << end_pose.pose.position.z << endl;
 
-        cout << "Current orient xyzw : " 
-        << end_pose.pose.orientation.x << ", " 
-        << end_pose.pose.orientation.y << ", " 
-        << end_pose.pose.orientation.z << ", " 
-        << end_pose.pose.orientation.w << endl;
+        cout << "Current pos : "
+             << end_pose.pose.position.x << ", "
+             << end_pose.pose.position.y << ", "
+             << end_pose.pose.position.z << endl;
+
+        cout << "Current orient xyzw : "
+             << end_pose.pose.orientation.x << ", "
+             << end_pose.pose.orientation.y << ", "
+             << end_pose.pose.orientation.z << ", "
+             << end_pose.pose.orientation.w << endl;
+
+        vector<double> rpy = arm.getCurrentRPY(end_effector);
+        cout << "Current orient rpy : "
+             << rpy[0] / M_PI * 180.0 << ", " << rpy[1] / M_PI * 180.0 << ", " << rpy[2] / M_PI * 180.0 << endl;
 
         vector<double> vJointValues = arm.getCurrentJointValues();
         for(auto&& value:vJointValues)

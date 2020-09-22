@@ -41,3 +41,5 @@ target_link_libraries(arduino_serial ${catkin_LIBRARIES})
 target_link_libraries(normal_print ${catkin_LIBRARIES})
 target_link_libraries(circle_demo ${catkin_LIBRARIES})
 target_link_libraries(cubic_demo ${catkin_LIBRARIES})
+
+SET(CMAKE_BUILD_TYPE Debug)

@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     target_pose.orientation.w = 0.5;
 
     target_pose.position.x = 0.0;
-    target_pose.position.y = 0.40;
+    target_pose.position.y = 0.30;
     target_pose.position.z = 0.15;
 
     arm.setPoseTarget(target_pose);
