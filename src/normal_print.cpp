@@ -1,4 +1,4 @@
-// #D Print in a normal way
+// 3D Print in a normal way
 
 #include <ros/ros.h>
 
@@ -7,72 +7,104 @@
 #include <string>
 
 #include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/robot_trajectory/robot_trajectory.h>
-#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit_visual_tools/moveit_visual_tools.h>
 
-#include <const_cartesian_speed.h>
+#include <robot_print_utils.h>
 
 using namespace std;
+namespace rvt = rviz_visual_tools;
 
-bool GetDataFromFile(const string &fileName, vector<double>& xData, vector<double>& yData, vector<double>& zData)
+typedef vector<geometry_msgs::Pose> PoseVector;
+typedef pair<PoseVector, bool> PoseVector_Bool_Pair;
+
+// I: file_name: the file with data that extracted from the g-code file
+// I: init_pose: the robot pose where the print start
+// O: paths:  contain a set of paths, if the extruder works during the path, the paired bool is true
+bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_pose, vector<PoseVector_Bool_Pair> &paths)
 {
     ifstream file;
-    file.open(fileName.data());
+    file.open(file_name.data());
     if (file.is_open())
-        cout << "File loaded! Path is " << fileName << endl;
+        cout << "File loaded! Path is " << file_name << endl;
     else
     {
         cout << "Open data file failed!\n";
         return false;
     }
+    paths.clear();
 
-    string dataInLine;
-    double value;
-    while (getline(file, dataInLine))
+    // the 5 datas are: X position, Y position, Z position, Extrude length, Velocity
+    double data_in_line[5];
+    double prev_data[5] = {0};
+    double value = 0;
+    PoseVector waypoints;
+    geometry_msgs::Pose pose = init_pose;
+    int idx = 0;
+    string file_line;
+    while (getline(file, file_line))
     {
-        istringstream dataStream(dataInLine);
-        int idx = 0;
-        while (dataStream >> value)
+        istringstream file_line_stream(file_line);
+        for (int jdx = 0; jdx < 5; jdx++)
         {
-            value = value / 1000.0; // convert the unit from MM to M
-
-            if (idx == 0)
-                xData.push_back(value);
-            if (idx == 1)
-                yData.push_back(value);
-            if (idx == 2)
-                zData.push_back(value);
-
-            idx++;
+            if (file_line_stream >> value)
+                // convert the unit from MM to M
+                data_in_line[jdx] = value / 1000.0;
         }
-    }
 
-    if (xData.size() == yData.size() && xData.size() == zData.size())
-    {
-        cout << xData.size() << " waypoints read successfully.\n";
-        return true;
+        // check whether the points are duplicated
+        if (data_in_line[0] == prev_data[0] &&
+            data_in_line[1] == prev_data[1] &&
+            data_in_line[2] == prev_data[2])
+        {
+            continue;
+        }
+
+        // when the extrude status changed, a path end
+        if (data_in_line[3] > 0 && prev_data[3] <= 0 ||
+            data_in_line[3] <= 0 && prev_data[3] > 0)
+        {
+            bool extrude;
+            if (data_in_line[3] > 0 && prev_data[3] <= 0)
+            {
+                extrude = false;
+            }
+            if (data_in_line[3] <= 0 && prev_data[3] > 0)
+            {
+                extrude = true;
+            }
+            // push the path to paths vector
+            PoseVector_Bool_Pair pose_vector_bool_p(waypoints, extrude);
+            paths.push_back(pose_vector_bool_p);
+            waypoints.clear();
+            // then reset the path
+            pose.position.x = init_pose.position.x + prev_data[0];
+            pose.position.y = init_pose.position.y + prev_data[1];
+            pose.position.z = init_pose.position.z + prev_data[2];
+            waypoints.push_back(pose);
+        }
+
+        pose.position.x = init_pose.position.x + data_in_line[0];
+        pose.position.y = init_pose.position.y + data_in_line[1];
+        pose.position.z = init_pose.position.z + data_in_line[2];
+        waypoints.push_back(pose);
+
+        memcpy(prev_data, data_in_line, sizeof(prev_data));
+        idx++;
     }
-    else
-    {
-        cout << "Data read error!\n";
-        return false;
-    }
+    return true;
 }
 
-    int main(int argc, char **argv)
+int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "cartesian_cubic_demo");
+    ros::init(argc, argv, "normal_print");
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
     moveit::planning_interface::MoveGroupInterface arm("manipulator");
     string end_effector_link = arm.getEndEffectorLink();
 
-    cout << "End effector is: " << end_effector_link << endl;
-
     string reference_frame = "base_link";
     arm.setPoseReferenceFrame(reference_frame);
-
     arm.allowReplanning(true);
     arm.setGoalPositionTolerance(0.0002);
     arm.setGoalOrientationTolerance(0.01);
@@ -80,22 +112,16 @@ bool GetDataFromFile(const string &fileName, vector<double>& xData, vector<doubl
     arm.setMaxVelocityScalingFactor(0.5);
 
     // Initialize the position
-    arm.setNamedTarget("up");
-    arm.move();
-    sleep(1);
-
     arm.setNamedTarget("work");
     arm.move();
     sleep(1);
 
     // Set the starting position
     geometry_msgs::Pose target_pose;
-
     target_pose.orientation.x = 0.5;
     target_pose.orientation.y = 0.5;
     target_pose.orientation.z = -0.5;
     target_pose.orientation.w = 0.5;
-
     target_pose.position.x = 0.0;
     target_pose.position.y = 0.4;
     target_pose.position.z = 0.1;
@@ -104,80 +130,63 @@ bool GetDataFromFile(const string &fileName, vector<double>& xData, vector<doubl
     arm.move();
     sleep(1);
 
-    vector<geometry_msgs::Pose> waypoints;
-    waypoints.push_back(target_pose);
+    ROS_INFO("Input the file name : ");
+    string file_name;
+    cin >> file_name;
+    file_name = "/home/jinou/catkin_ws/" + file_name;
 
-    cout << "Input the file name:\n";
-    string fileName = "/home/jinou/catkin_ws/data.txt";
-
-    vector<double> xData;
-    vector<double> yData;
-    vector<double> zData;
-    if(!GetDataFromFile(fileName, xData, yData, zData))
+    vector<PoseVector_Bool_Pair> paths;
+    if (!GetPathsFromFile(file_name, target_pose, paths))
         return 1;
 
-    const double xpos = target_pose.position.x;
-    const double ypos = target_pose.position.y;
-    const double zpos = target_pose.position.z;
-
-    int numDataSize = xData.size();
-
-    for (int idx = 0; idx < xData.size(); idx++)
+    // =========== Visualization =========== //
+    moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
+    visual_tools.loadMarkerPub();
+    visual_tools.deleteAllMarkers();
+    for (int idx = 0; idx < paths.size(); idx++)
     {
-        target_pose.position.x = xpos + xData[idx] / 2;
-        target_pose.position.y = ypos + yData[idx] / 2;
-        target_pose.position.z = zpos + zData[idx];
-
-        waypoints.push_back(target_pose);
+        // show all extrude paths in Rviz GUI
+        if (paths[idx].second == true)
+            visual_tools.publishPath(paths[idx].first, rvt::LIME_GREEN, rvt::XXXXSMALL);
     }
+    visual_tools.trigger();
+    // =========== Visualization =========== //
 
-    // 笛卡尔空间下的路径规划
-    moveit_msgs::RobotTrajectory trajectory;
+    ROS_INFO("Input the velocity:");
+    double speed = 0;
+    cin >> speed;
+    speed = speed > 0.6 ? 0.6 : speed;
+    ROS_INFO("The speed has been set to : %f", speed);
+
     const double jump_threshold = 0.0;
-    const double eef_step = 0.0005;
-    double fraction = 0.0;
-    int maxtries = 100; //最大尝试规划次数
-    int attempts = 0;   //已经尝试规划次数
+    const double eef_step = 0.0008;
 
-    while (fraction < 1.0 && attempts < maxtries)
+    for (int idx = 0; idx < paths.size(); idx++)
     {
-        fraction = arm.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-        attempts++;
-
-        if (attempts % 10 == 0)
-            ROS_INFO("Still trying after %d attempts...", attempts);
-    }
-
-    if (fraction == 1)
-    {
-        ROS_INFO("Path computed successfully.");
-
-        // 生成机械臂的运动规划数据
         moveit::planning_interface::MoveGroupInterface::Plan plan;
+        moveit_msgs::RobotTrajectory trajectory;
+
+        double fraction = arm.computeCartesianPath(paths[idx].first, eef_step, jump_threshold, trajectory);
+
+        if (fraction != 1.0)
+        {
+            ROS_INFO("Path generating failed!");
+            break;
+        }
+
         plan.trajectory_ = trajectory;
-
-        ROS_INFO("Input the velocity:");
-        double speed = 0;
-        cin >> speed;
-        speed = speed > 0.1 ? 0.1 : speed;
-        cout << "Speed has set to " << speed << endl;
-
         setAvgCartesianSpeed(plan, end_effector_link, speed);
-
-        int numWayPoints = plan.trajectory_.joint_trajectory.points.size();
-        cout << "cartesian points number is : " << numWayPoints << endl;
-
         arm.execute(plan);
         sleep(1);
-    }
-    else
-    {
-        ROS_INFO("Path planning failed with only %0.6f success after %d attempts.", fraction, maxtries);
     }
 
     arm.setNamedTarget("work");
     arm.move();
     sleep(1);
+
+    // remove all paths in Rviz GUI
+    visual_tools.deleteAllMarkers();
+    visual_tools.trigger();
 
     ros::shutdown();
     return 0;

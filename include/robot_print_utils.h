@@ -1,21 +1,22 @@
-#ifndef _CONST_CARTESIAN_SPEED_H_
-#define _CONST_CARTESIAN_SPEED_H_
+#ifndef _ROBOT_PRINT_UTILS_H_
+#define _ROBOT_PRINT_UTILS_H_
 
 #include <ros/ros.h>
 
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 
-void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &plan, const std::string end_effector, const double speed)
+void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan& plan, const std::string end_effector, const double speed)
 {
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
     robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
     robot_state::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
     kinematic_state->setToDefaultValues();
 
-    int num_waypoints = plan.trajectory_.joint_trajectory.points.size();                        //gets the number of waypoints in the trajectory
-    const std::vector<std::string> joint_names = plan.trajectory_.joint_trajectory.joint_names; //gets the names of the joints being updated in the trajectory
-
+    //gets the number of waypoints in the trajectory
+    int num_waypoints = plan.trajectory_.joint_trajectory.points.size();
+    //gets the names of the joints being updated in the trajectory
+    const std::vector<std::string> joint_names = plan.trajectory_.joint_trajectory.joint_names;
     //set joint positions of zeroth waypoint
     kinematic_state->setVariablePositions(joint_names, plan.trajectory_.joint_trajectory.points.at(0).positions);
 

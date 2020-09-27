@@ -6,10 +6,8 @@
 #include <math.h>
 
 #include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/robot_trajectory/robot_trajectory.h>
-#include <moveit/robot_model_loader/robot_model_loader.h>
 
-#include <const_cartesian_speed.h>
+#include <robot_print_utils.h>
 
 int main(int argc, char **argv)
 {
