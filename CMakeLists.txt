@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   moveit_ros_planning_interface
   serial
+  moveit_visual_tools
 )
 
 find_package(Eigen3 REQUIRED)
@@ -16,6 +17,7 @@ catkin_package(
     moveit_ros_planning_interface
     roscpp
     serial
+    moveit_visual_tools
   DEPENDS
     EIGEN3
 )
