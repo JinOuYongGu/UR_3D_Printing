@@ -8,6 +8,7 @@
 
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit_visual_tools/moveit_visual_tools.h>
+#include <std_msgs/Bool.h>
 
 #include <robot_print_utils.h>
 
@@ -97,6 +98,7 @@ bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_p
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "normal_print");
+
     ros::AsyncSpinner spinner(1);
     spinner.start();
 
@@ -143,13 +145,6 @@ int main(int argc, char **argv)
     moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
     visual_tools.loadMarkerPub();
     visual_tools.deleteAllMarkers();
-    for (int idx = 0; idx < paths.size(); idx++)
-    {
-        // show all extrude paths in Rviz GUI
-        if (paths[idx].second == true)
-            visual_tools.publishPath(paths[idx].first, rvt::LIME_GREEN, rvt::XXXXSMALL);
-    }
-    visual_tools.trigger();
     // =========== Visualization =========== //
 
     ROS_INFO("Input the velocity:");
@@ -160,6 +155,9 @@ int main(int argc, char **argv)
 
     const double jump_threshold = 0.0;
     const double eef_step = 0.0008;
+
+    ros::NodeHandle node_handle;
+    ros::Publisher extrude_pub = node_handle.advertise<std_msgs::Bool>("extrude_status", 100);
 
     for (int idx = 0; idx < paths.size(); idx++)
     {
@@ -174,10 +172,42 @@ int main(int argc, char **argv)
             break;
         }
 
+        // path visualization
+        if (paths[idx].second == true)
+        {
+            PoseVector display_path;
+            display_path.push_back(paths[idx].first[0]);
+
+            for (int jdx = 1; jdx < paths[idx].first.size(); jdx++)
+            {
+                geometry_msgs::Pose& last_display_pose = display_path[display_path.size() - 1];
+                geometry_msgs::Pose& pose_in_path = paths[idx].first[jdx];
+
+                double distance = pow((
+                                          pow(pose_in_path.position.x - last_display_pose.position.x, 2) +
+                                          pow(pose_in_path.position.y - last_display_pose.position.y, 2) +
+                                          pow(pose_in_path.position.z - last_display_pose.position.z, 2)),
+                                      0.5);
+                if (distance > 0.001) // only shows points that distance > 1mm between them
+                    display_path.push_back(pose_in_path);
+            }
+            visual_tools.publishPath(display_path, rvt::LIME_GREEN, rvt::XXXXSMALL);
+            visual_tools.trigger();
+        }
+
         plan.trajectory_ = trajectory;
         setAvgCartesianSpeed(plan, end_effector_link, speed);
+
+        std_msgs::Bool extrude_status_msg;
+        extrude_status_msg.data = paths[idx].second;
+        extrude_pub.publish(extrude_status_msg);
+
         arm.execute(plan);
-        sleep(1);
+
+        extrude_status_msg.data = false;
+        extrude_pub.publish(extrude_status_msg);
+        
+        ros::Duration(0.5).sleep();
     }
 
     arm.setNamedTarget("work");
