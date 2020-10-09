@@ -9,10 +9,11 @@ IDE: VScode
 # Dependency & Building
 ## Dependency
 ### robot driver
+
     # switch to workspace src folder
-	cd ~
+    cd ~
     cd catkin_ws/src
-    
+
     # clone the robot driver
     git clone https://github.com/JinOuYongGu/Universal_Robots_ROS_Driver.git
 
@@ -31,9 +32,9 @@ You may need to reboot your PC after install these libraries.
 ## Building
 After installing the ur_robot_driver, download the code of this repo and build it.
 
-        cd ~
-        cd catkin_ws/src
-    	git clone https://github.com/JinOuYongGu/UR_3D_Printing.git
+    cd ~
+    cd catkin_ws/src
+    git clone https://github.com/JinOuYongGu/UR_3D_Printing.git
 
 Then your src folder should look like this:
 - universal_robot
@@ -41,5 +42,6 @@ Then your src folder should look like this:
 - UR_Additive_Manufacturing
 
 Now you can switch to catkin_ws folder and build the project.
-        cd ..
-        catkin_make
+
+    cd ..
+    catkin_make

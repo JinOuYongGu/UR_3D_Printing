@@ -1,5 +1,7 @@
 #include <ros/ros.h>
 
+#include <iostream>
+
 #include <serial/serial.h>
 #include <std_msgs/Bool.h>
 
@@ -15,13 +17,15 @@ void callback(const std_msgs::Bool::ConstPtr& extrude_status_msg)
     bool current_statue = extrude_status_msg->data;
     if (current_statue == false && extrude_status == true)
     {
-        ros::Duration(0.25).sleep();
-        ros_ser.write("G1 E-6 P1800\n");
+        ros::Duration(0.05).sleep();
+        ros_ser.write("G1 E-5 F2500\n");
     }
     else if (current_statue == true && extrude_status == false)
     {
-        ros_ser.write("G1 E6 P1800\n");
+        ros::Duration(0.05).sleep();
+        ros_ser.write("G1 E5 F2500\n");
     }
+    
     extrude_status = extrude_status_msg->data;
 }
 
@@ -41,26 +45,36 @@ int main(int argc, char **argv)
     Timeout to = Timeout::simpleTimeout(1000);
     ros_ser.setTimeout(to);
     ros_ser.open();
-    
+
+    ROS_INFO("Starting marlin firmware ...\n");
     sleep(2);
     ros_ser.write("G91\n");
     sleep(1);
     ros_ser.write("M104 S210\n");
     sleep(1);
+    ros_ser.write("M140 S60\n");
+    sleep(1);
 
-    ros::Rate loop_rate(100);
+    ROS_INFO("Input the print speed (mm/s):\n");
+    double print_speed;
+    cin >> print_speed;
+    print_speed = print_speed > 20 ? 20 : print_speed;
+    ROS_INFO("Print speed set as %d", print_speed);
+
+    double extrude_speed = print_speed * 0.8 * 0.4 * 60.0 / 2.4;
+    double extrude_length = extrude_speed / 200.0 / 60.0;
+
+    string extrude_speed_string = to_string(extrude_speed).substr(0, 3);
+    string extrude_length_string = to_string(extrude_length).substr(0, 6);
+    string gcode = "G1 E" + extrude_length_string + " F" + extrude_speed_string + "\n";
+
+    ros::Rate loop_rate(200);
     while (ros::ok())
     {
         ros::spinOnce();
 
-        // if (ros_ser.available())
-        // {
-        //     string serial_data = ros_ser.read(ros_ser.available());
-        //     ROS_INFO_STREAM(serial_data);
-        // }
-
         if (extrude_status == true)
-            ros_ser.write("G1 E0.1 P30\n");
+            ros_ser.write(gcode);
 
         loop_rate.sleep();
     }

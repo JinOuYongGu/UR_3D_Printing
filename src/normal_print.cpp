@@ -110,13 +110,17 @@ int main(int argc, char **argv)
     arm.allowReplanning(true);
     arm.setGoalPositionTolerance(0.0002);
     arm.setGoalOrientationTolerance(0.01);
-    arm.setMaxAccelerationScalingFactor(0.5);
-    arm.setMaxVelocityScalingFactor(0.5);
+    arm.setMaxAccelerationScalingFactor(0.1);
+    arm.setMaxVelocityScalingFactor(0.1);
 
     // Initialize the position
     arm.setNamedTarget("work");
     arm.move();
     sleep(1);
+
+    ROS_INFO("Input wanted Z height:\n");
+    double z_height;
+    cin >> z_height;
 
     // Set the starting position
     geometry_msgs::Pose target_pose;
@@ -126,7 +130,7 @@ int main(int argc, char **argv)
     target_pose.orientation.w = 0.5;
     target_pose.position.x = 0.0;
     target_pose.position.y = 0.4;
-    target_pose.position.z = 0.1;
+    target_pose.position.z = z_height / 1000.0;
 
     arm.setPoseTarget(target_pose);
     arm.move();
@@ -141,11 +145,10 @@ int main(int argc, char **argv)
     if (!GetPathsFromFile(file_name, target_pose, paths))
         return 1;
 
-    // =========== Visualization =========== //
+    // =========== Create Visualization Tool =========== //
     moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
     visual_tools.loadMarkerPub();
     visual_tools.deleteAllMarkers();
-    // =========== Visualization =========== //
 
     ROS_INFO("Input the velocity:");
     double speed = 0;
@@ -153,26 +156,37 @@ int main(int argc, char **argv)
     speed = speed > 0.6 ? 0.6 : speed;
     ROS_INFO("The speed has been set to : %f", speed);
 
+    // === Check the path availability == //
     const double jump_threshold = 0.0;
     const double eef_step = 0.0008;
 
+    PoseVector all_poses;
+    for (int idx = 0; idx < paths.size(); idx++)
+    {
+        all_poses.insert(all_poses.end(), paths[idx].first.begin(), paths[idx].first.end());
+    }
+
+    moveit_msgs::RobotTrajectory check_trajectory;
+    double fraction = arm.computeCartesianPath(all_poses, eef_step, jump_threshold, check_trajectory);
+    if (fraction != 1.0)
+    {
+        ROS_INFO("Path generating failed!");
+        return 1;
+    }
+
+    // === Create a publisher to control the extruder == //
     ros::NodeHandle node_handle;
     ros::Publisher extrude_pub = node_handle.advertise<std_msgs::Bool>("extrude_status", 100);
 
+    // === Execute the trajectories one by one === //
     for (int idx = 0; idx < paths.size(); idx++)
     {
         moveit::planning_interface::MoveGroupInterface::Plan plan;
         moveit_msgs::RobotTrajectory trajectory;
 
-        double fraction = arm.computeCartesianPath(paths[idx].first, eef_step, jump_threshold, trajectory);
+        arm.computeCartesianPath(paths[idx].first, eef_step, jump_threshold, trajectory);
 
-        if (fraction != 1.0)
-        {
-            ROS_INFO("Path generating failed!");
-            break;
-        }
-
-        // path visualization
+        // === shows the printing path (optional) === //
         if (paths[idx].second == true)
         {
             PoseVector display_path;
@@ -180,15 +194,15 @@ int main(int argc, char **argv)
 
             for (int jdx = 1; jdx < paths[idx].first.size(); jdx++)
             {
-                geometry_msgs::Pose& last_display_pose = display_path[display_path.size() - 1];
-                geometry_msgs::Pose& pose_in_path = paths[idx].first[jdx];
+                geometry_msgs::Pose &last_display_pose = display_path[display_path.size() - 1];
+                geometry_msgs::Pose &pose_in_path = paths[idx].first[jdx];
 
                 double distance = pow((
                                           pow(pose_in_path.position.x - last_display_pose.position.x, 2) +
                                           pow(pose_in_path.position.y - last_display_pose.position.y, 2) +
                                           pow(pose_in_path.position.z - last_display_pose.position.z, 2)),
                                       0.5);
-                if (distance > 0.001) // only shows points that distance > 1mm between them
+                if (distance > 0.001) // only shows points that distance > 1mm to save PC resource
                     display_path.push_back(pose_in_path);
             }
             visual_tools.publishPath(display_path, rvt::LIME_GREEN, rvt::XXXXSMALL);
@@ -196,21 +210,28 @@ int main(int argc, char **argv)
         }
 
         plan.trajectory_ = trajectory;
-        setAvgCartesianSpeed(plan, end_effector_link, speed);
+
+        // if don't need to extrude when moving, uses a fast speed to avoid leaking
+        if (paths[idx].second == false)
+            setAvgCartesianSpeed(plan, end_effector_link, speed * 3);
+        else
+            setAvgCartesianSpeed(plan, end_effector_link, speed);
 
         std_msgs::Bool extrude_status_msg;
         extrude_status_msg.data = paths[idx].second;
         extrude_pub.publish(extrude_status_msg);
+        ros::Duration(0.1).sleep();
 
         arm.execute(plan);
 
         extrude_status_msg.data = false;
         extrude_pub.publish(extrude_status_msg);
-        
-        ros::Duration(0.5).sleep();
+        ros::Duration(0.1).sleep();
     }
 
-    arm.setNamedTarget("work");
+    geometry_msgs::Pose end_pose = arm.getCurrentPose().pose;
+    end_pose.position.z += 0.01; // lift nozzle 1cm after print
+    arm.setPoseTarget(end_pose);
     arm.move();
     sleep(1);
 

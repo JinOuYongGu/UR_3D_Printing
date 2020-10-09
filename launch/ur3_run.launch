@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- Launch moveit -->
+    <include file="$(find ur3_moveit_config)/launch/ur3_moveit_planning_execution.launch"/>
+    <!-- Launch rviz -->
+    <include file="$(find ur3_moveit_config)/launch/moveit_rviz.launch"/>
+</launch>

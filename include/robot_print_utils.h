@@ -49,7 +49,7 @@ void setAvgCartesianSpeed(moveit_msgs::RobotTrajectory& trajectory, const std::s
             next_waypoint->time_from_start.fromSec(new_timestamp);
         else
         {
-            ROS_WARN_NAMED("setAvgCartesianSpeed", "Average speed is too fast. Moving as fast as joint constraints allow.");
+            //ROS_WARN_NAMED("setAvgCartesianSpeed", "Average speed is too fast. Moving as fast as joint constraints allow.");
         }
 
         //update current_end_effector_state for next iteration
