@@ -47,28 +47,38 @@ int main(int argc, char **argv)
     ros_ser.open();
 
     ROS_INFO("Starting marlin firmware ...\n");
-    sleep(2);
+    sleep(5);
     ros_ser.write("G91\n");
     sleep(1);
-    ros_ser.write("M104 S210\n");
+    ros_ser.write("M104 S240\n");
     sleep(1);
-    ros_ser.write("M140 S60\n");
+    ros_ser.write("M140 S70\n");
     sleep(1);
 
-    ROS_INFO("Input the print speed (mm/s):\n");
+    ROS_INFO("Input the print speed (mm/s):");
     double print_speed;
     cin >> print_speed;
-    print_speed = print_speed > 20 ? 20 : print_speed;
-    ROS_INFO("Print speed set as %d", print_speed);
+    print_speed = print_speed > 60 ? 60 : print_speed;
+    ROS_INFO("Print speed set as %4.1d", print_speed);
 
-    double extrude_speed = print_speed * 0.8 * 0.4 * 60.0 / 2.4;
-    double extrude_length = extrude_speed / 200.0 / 60.0;
+    ROS_INFO("Input the extrude ratio (%):");
+    double ratio = 100;
+    cin >> ratio;
+    ratio = ratio < 150 || ratio > 50 ? ratio / 100 : 1;
+    ROS_INFO("Extrude ratio set as %4.1d%", ratio * 100);
+
+    double nozzle_diameter = 0.4;
+    double layer_thickness = 0.2;
+    double freq = 200; // the loop frequency of extruder
+
+    double extrude_speed = print_speed * layer_thickness * nozzle_diameter * 60.0 / 2.4;
+    double extrude_length = extrude_speed * ratio / 60.0 / freq;
 
     string extrude_speed_string = to_string(extrude_speed).substr(0, 3);
     string extrude_length_string = to_string(extrude_length).substr(0, 6);
     string gcode = "G1 E" + extrude_length_string + " F" + extrude_speed_string + "\n";
 
-    ros::Rate loop_rate(200);
+    ros::Rate loop_rate(freq);
     while (ros::ok())
     {
         ros::spinOnce();

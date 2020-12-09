@@ -29,7 +29,7 @@ bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_p
         cout << "File loaded! Path is " << file_name << endl;
     else
     {
-        cout << "Open data file failed!\n";
+        cout << "Open data file failed!" << endl;
         return false;
     }
     paths.clear();
@@ -113,12 +113,17 @@ int main(int argc, char **argv)
     arm.setMaxAccelerationScalingFactor(0.1);
     arm.setMaxVelocityScalingFactor(0.1);
 
+    // =========== Create Visualization Tool =========== //
+    moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
+    visual_tools.loadMarkerPub();
+    visual_tools.deleteAllMarkers();
+
     // Initialize the position
     arm.setNamedTarget("work");
     arm.move();
     sleep(1);
 
-    ROS_INFO("Input wanted Z height:\n");
+    ROS_INFO("Input wanted Z height:");
     double z_height;
     cin >> z_height;
 
@@ -136,25 +141,20 @@ int main(int argc, char **argv)
     arm.move();
     sleep(1);
 
-    ROS_INFO("Input the file name : ");
+    ROS_INFO("Input the file name here: ");
     string file_name;
     cin >> file_name;
     file_name = "/home/jinou/catkin_ws/" + file_name;
-
     vector<PoseVector_Bool_Pair> paths;
     if (!GetPathsFromFile(file_name, target_pose, paths))
         return 1;
 
-    // =========== Create Visualization Tool =========== //
-    moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
-    visual_tools.loadMarkerPub();
-    visual_tools.deleteAllMarkers();
-
-    ROS_INFO("Input the velocity:");
+    ROS_INFO("Input the velocity (mm/s):");
     double speed = 0;
     cin >> speed;
-    speed = speed > 0.6 ? 0.6 : speed;
-    ROS_INFO("The speed has been set to : %f", speed);
+    speed = speed > 60 ? 60 : speed;
+    ROS_INFO("The speed has been set to : %4.2f mm/s", speed);
+    speed /= 1000.0; // convert the speed unit to m/s, since the ROS uses this unit
 
     // === Check the path availability == //
     const double jump_threshold = 0.0;
@@ -211,9 +211,12 @@ int main(int argc, char **argv)
 
         plan.trajectory_ = trajectory;
 
-        // if don't need to extrude when moving, uses a fast speed to avoid leaking
+        // if don't need to extrude when moving (when trade), uses a fast speed to avoid leaking
         if (paths[idx].second == false)
-            setAvgCartesianSpeed(plan, end_effector_link, speed * 3);
+        {
+            double trade_speed = speed * 3 > 60.0 ? 60.0 : speed * 3;
+            setAvgCartesianSpeed(plan, end_effector_link, trade_speed);
+        }
         else
             setAvgCartesianSpeed(plan, end_effector_link, speed);
 
