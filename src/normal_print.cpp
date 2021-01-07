@@ -18,7 +18,7 @@ namespace rvt = rviz_visual_tools;
 typedef vector<geometry_msgs::Pose> PoseVector;
 typedef pair<PoseVector, bool> PoseVector_Bool_Pair;
 
-// I: file_name: the file with data that extracted from the g-code file
+// I: file_name: the data file that extracted from the g-code file
 // I: init_pose: the robot pose where the print start
 // O: paths:  contain a set of paths, if the extruder works during the path, the paired bool is true
 bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_pose, vector<PoseVector_Bool_Pair> &paths)
@@ -52,7 +52,7 @@ bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_p
                 data_in_line[jdx] = value / 1000.0;
         }
 
-        // check whether the points are duplicated
+        // check whether the points in path are duplicated
         if (data_in_line[0] == prev_data[0] &&
             data_in_line[1] == prev_data[1] &&
             data_in_line[2] == prev_data[2])
@@ -74,8 +74,8 @@ bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_p
                 extrude = true;
             }
             // push the path to paths vector
-            PoseVector_Bool_Pair pose_vector_bool_p(waypoints, extrude);
-            paths.push_back(pose_vector_bool_p);
+            PoseVector_Bool_Pair poseVector_bool_p(waypoints, extrude);
+            paths.push_back(poseVector_bool_p);
             waypoints.clear();
             // then reset the path
             pose.position.x = init_pose.position.x + prev_data[0];
@@ -93,6 +93,34 @@ bool GetPathsFromFile(const string &file_name, const geometry_msgs::Pose &init_p
         idx++;
     }
     return true;
+}
+
+// find the center point and move the path to it.
+// I/O: paths
+void LayoutPaths(vector<PoseVector_Bool_Pair> &paths)
+{
+    vector<double> x_pos;
+    vector<double> y_pos;
+    for (auto p_b_p : paths)
+    {
+        for (auto pose : p_b_p.first)
+        {
+            x_pos.push_back(pose.position.x);
+            y_pos.push_back(pose.position.y);
+        }
+    }
+
+    double center_x = *max_element(x_pos.begin(), x_pos.end()) - *min_element(x_pos.begin(), x_pos.end());
+    double center_y = *max_element(y_pos.begin(), y_pos.end()) - *min_element(y_pos.begin(), y_pos.end());
+
+    for (auto &&p_b_p : paths)
+    {
+        for (auto &&pose : p_b_p.first)
+        {
+            pose.position.x -= center_x;
+            pose.position.y -= center_y;
+        }
+    }
 }
 
 int main(int argc, char **argv)
@@ -148,6 +176,7 @@ int main(int argc, char **argv)
     vector<PoseVector_Bool_Pair> paths;
     if (!GetPathsFromFile(file_name, target_pose, paths))
         return 1;
+    LayoutPaths(paths);
 
     ROS_INFO("Input the velocity (mm/s):");
     double speed = 0;
@@ -160,19 +189,21 @@ int main(int argc, char **argv)
     const double jump_threshold = 0.0;
     const double eef_step = 0.0008;
 
-    PoseVector all_poses;
-    for (int idx = 0; idx < paths.size(); idx++)
-    {
-        all_poses.insert(all_poses.end(), paths[idx].first.begin(), paths[idx].first.end());
-    }
+    // PoseVector all_poses;
+    // for (int idx = 0; idx < paths.size(); idx++)
+    // {
+    //     all_poses.insert(all_poses.end(), paths[idx].first.begin(), paths[idx].first.end());
+    // }
 
-    moveit_msgs::RobotTrajectory check_trajectory;
-    double fraction = arm.computeCartesianPath(all_poses, eef_step, jump_threshold, check_trajectory);
-    if (fraction != 1.0)
-    {
-        ROS_INFO("Path generating failed!");
-        return 1;
-    }
+    // moveit_msgs::RobotTrajectory check_trajectory;
+    // double fraction = arm.computeCartesianPath(all_poses, eef_step, jump_threshold, check_trajectory);
+    // if (fraction != 1.0)
+    // {
+    //     ROS_INFO("Path generating failed!");
+    //     return 1;
+    // }
+    // else
+    //     ROS_INFO("Path check passed!");
 
     // === Create a publisher to control the extruder == //
     ros::NodeHandle node_handle;
@@ -223,13 +254,13 @@ int main(int argc, char **argv)
         std_msgs::Bool extrude_status_msg;
         extrude_status_msg.data = paths[idx].second;
         extrude_pub.publish(extrude_status_msg);
-        ros::Duration(0.1).sleep();
+        ros::Duration(0.2).sleep();
 
         arm.execute(plan);
 
         extrude_status_msg.data = false;
         extrude_pub.publish(extrude_status_msg);
-        ros::Duration(0.1).sleep();
+        ros::Duration(0.2).sleep();
     }
 
     geometry_msgs::Pose end_pose = arm.getCurrentPose().pose;
