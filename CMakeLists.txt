@@ -34,4 +34,4 @@ add_executable(normal_print src/normal_print.cpp)
 target_link_libraries(arduino_serial ${catkin_LIBRARIES})
 target_link_libraries(normal_print ${catkin_LIBRARIES})
 
-SET(CMAKE_BUILD_TYPE Release)
+SET(CMAKE_BUILD_TYPE Debug)

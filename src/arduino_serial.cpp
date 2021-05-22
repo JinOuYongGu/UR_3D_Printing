@@ -12,20 +12,22 @@ Serial ros_ser;
 bool extrude_status = false;
 
 //回调函数
-void callback(const std_msgs::Bool::ConstPtr& extrude_status_msg)
+void callback(const std_msgs::Bool::ConstPtr &extrude_status_msg)
 {
     bool current_statue = extrude_status_msg->data;
     if (current_statue == false && extrude_status == true)
     {
-        ros::Duration(0.05).sleep();
-        ros_ser.write("G1 E-5 F3000\n");
+        ros_ser.write("G1 E-5 F1800\n");
+        ros::Duration(0.25).sleep();
+        cout << "Retracting...\n";
     }
     else if (current_statue == true && extrude_status == false)
     {
-        ros::Duration(0.05).sleep();
-        ros_ser.write("G1 E5 F3000\n");
+        ros_ser.write("G1 E5 F1800\n");
+        ros::Duration(0.25).sleep();
+        cout << "Priming...\n";
     }
-    
+
     extrude_status = extrude_status_msg->data;
 }
 
@@ -50,7 +52,7 @@ int main(int argc, char **argv)
     sleep(5);
     ros_ser.write("G91\n");
     sleep(1);
-    ros_ser.write("M104 S250\n");
+    ros_ser.write("M104 S200\n");
     sleep(1);
     ros_ser.write("M140 S70\n");
     sleep(1);
@@ -77,7 +79,7 @@ int main(int argc, char **argv)
 
     ROS_INFO("Done! Preparing...");
 
-    double freq = 300; // the loop frequency of extruder
+    double freq = 100; // the loop frequency of extruder
 
     double extrude_speed = ratio * print_speed * layer_thickness * nozzle_diameter * 60.0 / 2.4;
     double extrude_length = extrude_speed / 60.0 / freq;
@@ -89,7 +91,7 @@ int main(int argc, char **argv)
     cout << "gcode is: " << gcode << endl;
 
     ros::Rate loop_rate(freq);
-    while (ros::ok())
+    while (true)
     {
         ros::spinOnce();
 

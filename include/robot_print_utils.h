@@ -6,7 +6,9 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 
-void setAvgCartesianSpeed(moveit_msgs::RobotTrajectory& trajectory, const std::string end_effector, const double speed)
+using namespace std;
+
+void SetAvgCartesianSpeed(moveit_msgs::RobotTrajectory &trajectory, const std::string end_effector, const double speed)
 {
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
     robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
@@ -112,9 +114,96 @@ void setAvgCartesianSpeed(moveit_msgs::RobotTrajectory& trajectory, const std::s
     }
 }
 
-void setAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &plan, const std::string end_effector, const double speed)
+void SetAvgCartesianSpeed(moveit::planning_interface::MoveGroupInterface::Plan &plan, const std::string end_effector, const double speed)
 {
-    setAvgCartesianSpeed(plan.trajectory_, end_effector, speed);
+    SetAvgCartesianSpeed(plan.trajectory_, end_effector, speed);
+}
+
+bool CalculateOrient(vector<double> pt1, vector<double> pt2, vector<double> &orient, double maxAngle = 30)
+{
+    if (pt1.size() != 3 || pt2.size() != 3 || pt1 == pt2)
+    {
+        cout << "CalculateOrient: Invalid Input!\n";
+        return false;
+    }
+    orient.clear();
+
+    double dx = pt1[0] - pt2[0];
+    double dy = pt1[1] - pt2[1];
+    double dz = pt1[2] - pt2[2];
+
+    double i = 0;
+    double j = 0;
+    double k = 0;
+
+    if (dx != 0)
+    {
+        double a = dy / dx;
+        double b = -1.0;
+        double d = pt2[1] - dy / dx * pt2[0];
+
+        i = b * dz;
+        j = -1.0 * dz * a;
+        k = dy * a - dx * b;
+    }
+    else
+    {
+        i = 0;
+        j = -1.0 * dz;
+        k = dy;
+    }
+
+    double length = pow(i * i + j * j + k * k, 0.5);
+    i /= length;
+    j /= length;
+    k /= length;
+
+    double rx = abs(acos(i));
+    double ry = abs(acos(j));
+    double rz = abs(acos(k));
+
+    maxAngle = maxAngle * 3.1415926 / 180;
+    double initAngle = 90 * 3.1415926 / 180;
+    rx = rx < initAngle - maxAngle ? initAngle - maxAngle : rx;
+    rx = rx > initAngle + maxAngle ? initAngle + maxAngle : rx;
+    ry = ry < initAngle - maxAngle ? initAngle - maxAngle : ry;
+    ry = ry > initAngle + maxAngle ? initAngle + maxAngle : ry;
+    rz = rz > maxAngle ? maxAngle : rz;
+
+    orient = {rx, ry, rz};
+    // tf2::Quaternion qua;
+    // qua.setRPY(rx, ry, rz);
+    // qua.normalize();
+    // orient = {qua.getX(), qua.getY(), qua.getZ(), qua.getW()};
+
+    return true;
+}
+
+void cubicSmooth7(const vector<double> in, vector<double> &out)
+{
+    out.clear();
+    out = in;
+
+    if (in.size() < 7)
+    {
+        return;
+    }
+    else
+    {
+        out[0] = (39.0 * in[0] + 8.0 * in[1] - 4.0 * in[2] - 4.0 * in[3] + 1.0 * in[4] + 4.0 * in[5] - 2.0 * in[6]) / 42.0;
+        out[1] = (8.0 * in[0] + 19.0 * in[1] + 16.0 * in[2] + 6.0 * in[3] - 4.0 * in[4] - 7.0 * in[5] + 4.0 * in[6]) / 42.0;
+        out[2] = (-4.0 * in[0] + 16.0 * in[1] + 19.0 * in[2] + 12.0 * in[3] + 2.0 * in[4] - 4.0 * in[5] + 1.0 * in[6]) / 42.0;
+
+        for (int idx = 3; idx < in.size() - 3; idx++)
+        {
+            out[idx] = (-2.0 * (in[idx - 3] + in[idx + 3]) + 3.0 * (in[idx - 2] + in[idx + 2]) + 6.0 * (in[idx - 1] + in[idx + 1]) + 7.0 * in[idx]) / 21.0;
+        }
+
+        int N = in.size();
+        out[N - 3] = (-4.0 * in[N - 1] + 16.0 * in[N - 2] + 19.0 * in[N - 3] + 12.0 * in[N - 4] + 2.0 * in[N - 5] - 4.0 * in[N - 6] + 1.0 * in[N - 7]) / 42.0;
+        out[N - 2] = (8.0 * in[N - 1] + 19.0 * in[N - 2] + 16.0 * in[N - 3] + 6.0 * in[N - 4] - 4.0 * in[N - 5] - 7.0 * in[N - 6] + 4.0 * in[N - 7]) / 42.0;
+        out[N - 1] = (39.0 * in[N - 1] + 8.0 * in[N - 2] - 4.0 * in[N - 3] - 4.0 * in[N - 4] + 1.0 * in[N - 5] + 4.0 * in[N - 6] - 2.0 * in[N - 7]) / 42.0;
+    }
 }
 
 #endif
