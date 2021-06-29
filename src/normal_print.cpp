@@ -296,7 +296,7 @@ int main(int argc, char **argv)
     double x_offset, y_offset;
     cin >> x_offset >> y_offset;
     LayoutPaths(x_offset, y_offset, paths);
-    SetPathOrient(paths, 10);
+    //SetPathOrient(paths, 10);
 
     ROS_INFO("Input the velocity (mm/s):");
     double speed = 0;

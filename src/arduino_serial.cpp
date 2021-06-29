@@ -52,9 +52,9 @@ int main(int argc, char **argv)
     sleep(5);
     ros_ser.write("G91\n");
     sleep(1);
-    ros_ser.write("M104 S200\n");
+    ros_ser.write("M104 S210\n");
     sleep(1);
-    ros_ser.write("M140 S70\n");
+    ros_ser.write("M140 S60\n");
     sleep(1);
 
     ROS_INFO("Input the print speed (mm/s):");
